@@ -1,5 +1,6 @@
 // Unit-Tests der reinen Rechenregeln (keine Abhaengigkeiten -> keine Test Doubles noetig).
-// TF-09 (Gebuehr, Grenzwerte) und Testdaten Kennzeichen aus Testkonzept Kap. 9 (TF-05).
+// TF-09 (Gebuehr, Grenzwerte), Testdaten Kennzeichen aus Testkonzept Kap. 9 (TF-05)
+// und Grenzwerte Kennzeichen (TF-22, Testkonzept V1.1).
 
 #include <unity.h>
 #include "gebuehr.h"
@@ -65,6 +66,15 @@ void test_TF05_kennzeichen_ungueltig() {
   pruefeUngueltig(nullptr);
 }
 
+// TF-22 (Testkonzept V1.1): Grenzwerte der Nummer 1..999999 (Fehler F-03)
+void test_TF22_kennzeichen_grenzwerte() {
+  pruefeGueltig("ZH 1", "ZH 1");              // unterer Grenzwert
+  pruefeGueltig("ZH 999999", "ZH 999999");    // oberer Grenzwert
+  pruefeUngueltig("ZH 0");                    // knapp unter dem unteren Grenzwert
+  pruefeUngueltig("ZH 1000000");              // knapp ueber dem oberen Grenzwert
+  pruefeUngueltig("ZH 007");                  // fuehrende Null
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_TF09_gebuehr_grenzwerte);
@@ -72,5 +82,6 @@ int main(int, char**) {
   RUN_TEST(test_gebuehr_mehrere_tage);
   RUN_TEST(test_kennzeichen_gueltig);
   RUN_TEST(test_TF05_kennzeichen_ungueltig);
+  RUN_TEST(test_TF22_kennzeichen_grenzwerte);
   return UNITY_END();
 }

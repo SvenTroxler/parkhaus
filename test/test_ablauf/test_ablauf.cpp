@@ -80,13 +80,24 @@ void test_TF19_parkhaus_voll() {
   TEST_ASSERT_NOT_NULL(kasse->finde("SZ 7"));
 }
 
-// TF-12 / AK 4.3: fehlgeschlagene Zahlung -> Ausfahrt bleibt zu
-void test_TF12_fehlgeschlagene_zahlung_ausfahrt_zu() {
+// TF-12a / AK 4.3: Zahlung abgebrochen (nie bezahlt) -> Ausfahrt bleibt zu mit Zahlungshinweis
+void test_TF12a_abgebrochene_zahlung_ausfahrt_zu() {
+  einfahren("ZH 123456");
+  uhr->vorspulenMin(20);                                       // Kunde bricht an der Kasse ab
+  TEST_ASSERT_FALSE(aus->kamera("ZH 123456").ok);
+  TEST_ASSERT_FALSE(antriebAus->istOffen);
+  TEST_ASSERT_EQUAL_STRING("Bitte zuerst an der Kasse bezahlen", aus->meldung());
+  TEST_ASSERT_NOT_NULL(kasse->finde("ZH 123456"));
+}
+
+// TF-12b / AK 4.3: fehlgeschlagene Zahlung -> Ausfahrt bleibt zu mit Zahlungshinweis
+void test_TF12b_fehlgeschlagene_zahlung_ausfahrt_zu() {
   einfahren("ZH 123456");
   kasse->zahlen("ZH 123456", "kreditkarte", false, nullptr);
   TEST_ASSERT_FALSE(aus->kamera("ZH 123456").ok);
   TEST_ASSERT_FALSE(antriebAus->istOffen);
   TEST_ASSERT_TRUE(Bezahlstatus::NICHT_BEZAHLT == spy->letzterStatus);
+  TEST_ASSERT_EQUAL_STRING("Bitte zuerst an der Kasse bezahlen", aus->meldung());
   TEST_ASSERT_NOT_NULL(kasse->finde("ZH 123456"));             // Fahrzeug bleibt im Parkhaus
 }
 
@@ -107,23 +118,46 @@ void test_TF20_gesamtablauf() {
   TEST_ASSERT_FALSE(antriebAus->istOffen);
 }
 
-// TF-07: manuelle Erfassung bei der Ausfahrt, a) nicht bezahlt, b) bezahlt
-void test_TF07_manuelle_erfassung_ausfahrt() {
-  einfahren("BE 98765");
+// Vorbedingung TF-07: BE 98765 ist manuell eingefahren (aus TF-06)
+static void be98765ManuellEinfahren() {
+  ein->kamera("");
+  ein->hilfe();
+  TEST_ASSERT_TRUE(ein->manuell("BE 98765").ok);
+  ein->durchfahrt();
+}
 
-  // a) nicht bezahlt
+// TF-07a: manuelle Erfassung bei der Ausfahrt, nicht bezahlt -> zu, Zahlungshinweis
+void test_TF07a_manuelle_ausfahrt_nicht_bezahlt() {
+  be98765ManuellEinfahren();
   aus->kamera("");
   aus->hilfe();
   TEST_ASSERT_FALSE(aus->manuell("BE 98765").ok);
   TEST_ASSERT_FALSE(antriebAus->istOffen);
-  aus->hilfeBeenden();
+  TEST_ASSERT_EQUAL_STRING("Bitte zuerst an der Kasse bezahlen", aus->meldung());
+  TEST_ASSERT_NOT_NULL(kasse->finde("BE 98765"));
+}
 
-  // b) bezahlt
-  kasse->zahlen("BE 98765", "kreditkarte", true, nullptr);
+// TF-07b: manuelle Erfassung bei der Ausfahrt, bezahlt (CHF 2.00, Kreditkarte) -> offen
+void test_TF07b_manuelle_ausfahrt_bezahlt() {
+  be98765ManuellEinfahren();
+  uint32_t betrag = 0;
+  kasse->zahlen("BE 98765", "kreditkarte", true, &betrag);
+  TEST_ASSERT_EQUAL_UINT32(200, betrag);
   aus->kamera("");
   aus->hilfe();
+  int vorher = spy->anzahlBezahlstatus;
   TEST_ASSERT_TRUE(aus->manuell("BE 98765").ok);
+  TEST_ASSERT_EQUAL_INT(vorher + 1, spy->anzahlBezahlstatus);  // Zahlung wurde geprueft
   TEST_ASSERT_TRUE(antriebAus->istOffen);
+  TEST_ASSERT_NULL(kasse->finde("BE 98765"));
+}
+
+// TF-15 / F-04: unbekanntes Kennzeichen -> Display "Fahrzeug unbekannt" (nicht "bitte bezahlen")
+void test_TF15_unbekanntes_kennzeichen() {
+  einfahren("ZH 123456");
+  TEST_ASSERT_FALSE(aus->kamera("SZ 7").ok);
+  TEST_ASSERT_FALSE(antriebAus->istOffen);
+  TEST_ASSERT_EQUAL_STRING("Fahrzeug unbekannt – bitte Hilfe-Taste drücken", aus->meldung());
 }
 
 // TF-21: Gesamtablauf mit nicht erkanntem Kennzeichen (Einfahrt und Ausfahrt manuell)
@@ -153,9 +187,12 @@ int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_TF18_anzeige_aktualisiert_sich);
   RUN_TEST(test_TF19_parkhaus_voll);
-  RUN_TEST(test_TF12_fehlgeschlagene_zahlung_ausfahrt_zu);
+  RUN_TEST(test_TF12a_abgebrochene_zahlung_ausfahrt_zu);
+  RUN_TEST(test_TF12b_fehlgeschlagene_zahlung_ausfahrt_zu);
   RUN_TEST(test_TF20_gesamtablauf);
-  RUN_TEST(test_TF07_manuelle_erfassung_ausfahrt);
+  RUN_TEST(test_TF07a_manuelle_ausfahrt_nicht_bezahlt);
+  RUN_TEST(test_TF07b_manuelle_ausfahrt_bezahlt);
+  RUN_TEST(test_TF15_unbekanntes_kennzeichen);
   RUN_TEST(test_TF21_gesamtablauf_nicht_erkannt);
   return UNITY_END();
 }

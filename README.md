@@ -112,36 +112,53 @@ Die Tests laufen auf dem PC (`env:native`) mit dem Test-Framework Unity. Dafür 
 
 | Testprogramm | Was wird getestet | Test Doubles | Anzahl |
 |---|---|---|---|
-| `test_regeln` | Gebühr und Kennzeichen-Regeln (reine Funktionen) | keine | 5 |
-| `test_kasse` | Kasse isoliert | FakeUhr, DummyProtokoll | 14 |
-| `test_schranke` | Schranke isoliert, ohne echte Kasse | MockAntrieb, MockKasse (Stub-Antworten), FakeUhr, DummyProtokoll | 18 |
-| `test_ablauf` | Echte Kasse + echte Schranken (Integration), nur Hardware ersetzt | SpyKasse, MockAntrieb, FakeUhr, DummyProtokoll | 6 |
+| `test_regeln` | Gebühr und Kennzeichen-Regeln (reine Funktionen) | keine | 6 |
+| `test_kasse` | Kasse isoliert | FakeUhr, DummyProtokoll | 15 |
+| `test_schranke` | Schranke isoliert, ohne echte Kasse | MockAntrieb, MockKasse (Stub-Antworten), FakeUhr, DummyProtokoll | 21 |
+| `test_ablauf` | Echte Kasse + echte Schranken (Integration), nur Hardware ersetzt | SpyKasse, MockAntrieb, FakeUhr, DummyProtokoll | 8 |
 
-Bezug zum Testkonzept (A01-02-10):
+Ergebnis: **50 von 50 Tests bestanden**.
 
-| TF | Testfall | Automatisiert in | Bemerkung |
-|---|---|---|---|
-| TF-01 | Einfahrt mit gültigem Kennzeichen registrieren | `test_kasse`, `test_schranke` | Kennzeichen + Zeit gespeichert, Kasse wird mit normalisiertem Kennzeichen aufgerufen |
-| TF-02 | Einfahrtszeiten mehrerer Fahrzeuge | `test_kasse` | FakeUhr statt 2 Min. warten |
-| TF-03 | Einfahrtsschranke öffnet innerhalb 2 s | `test_schranke` (teilweise) | Geprüft wird, dass `oeffnen()` im selben Aufruf erfolgt. Die echte Zeit (Browser → WLAN → Servo) nicht. |
-| TF-04 | Schranke schliesst nach Durchfahrt | `test_schranke`, `test_ablauf` | inkl. „schliesst vorher nicht“ |
-| TF-05 | Einfahrt ohne gültiges Kennzeichen | `test_regeln`, `test_schranke` | alle ungültigen Eingaben aus Kap. 9; Schranke zu, Meldung, nichts gespeichert |
-| TF-06 | Manuelle Erfassung bei Einfahrt | `test_schranke`, `test_kasse` | Hilfe-Zustand, Vermerk „manuell erfasst“ |
-| TF-07 | Manuelle Erfassung bei Ausfahrt | `test_schranke`, `test_ablauf` | Variante a (nicht bezahlt) und b (bezahlt) |
-| TF-08 | Doppelte Einfahrt | `test_kasse`, `test_schranke` | |
-| TF-09 | Parkgebühr (Grenzwerte) | `test_regeln`, `test_kasse` | alle 8 Zeilen der Gebühren-Testdaten |
-| TF-10 | Zahlung mit Kreditkarte | `test_kasse` | |
-| TF-11 | Zahlung mit Twint | `test_kasse` | |
-| TF-12 | Fehlgeschlagene Zahlung | `test_kasse`, `test_ablauf` | Status bleibt offen, Ausfahrt bleibt zu |
-| TF-13 | Ausfahrt nach erfolgter Zahlung | `test_schranke`, `test_ablauf` | Kasse wird gefragt, Fahrzeug ausgetragen |
-| TF-14 | Ausfahrt ohne Zahlung | `test_schranke` | inkl. Betrag im Hinweis |
-| TF-15 | Ausfahrt mit unbekanntem Kennzeichen | `test_schranke`, `test_kasse` | |
-| TF-16 | Kasse nicht erreichbar | `test_schranke` | nur mit dem Stub möglich (`NICHT_ERREICHBAR`) |
-| TF-17 | Anzeige freie Plätze im Startzustand | `test_kasse`, `test_schranke` | |
-| TF-18 | Anzeige aktualisiert sich | `test_ablauf` | 2 → 1 → 2 |
-| TF-19 | Parkhaus voll | `test_kasse`, `test_schranke`, `test_ablauf` | |
-| TF-20 | Gesamtablauf | `test_ablauf` | 1 h 01 → CHF 4.00, Twint |
-| TF-21 | Gesamtablauf mit nicht erkanntem Kennzeichen | `test_ablauf` | Spy beweist die Zahlungsprüfung bei manueller Ausfahrt |
+### Bezug zum Testkonzept V1.1 und zum Testprotokoll
+
+Die Testfälle sind aus dem Testkonzept V1.1 abgeleitet (24 Testfälle, inkl. TF-07a/b, TF-12a/b und TF-22). Die erwarteten Ergebnisse und Display-Texte stammen aus dem Testprotokoll. Die Spalte „Protokoll“ zeigt das Ergebnis nach dem Retest vom 05.11.2026. Die gefundenen Fehler F-02 bis F-04 sind jetzt durch automatisierte Tests abgesichert (Regressionstests).
+
+| TF | Testfall | Automatisiert in | Was der Test prüft | Protokoll |
+|---|---|---|---|---|
+| TF-01 | Einfahrt registrieren | `test_kasse`, `test_schranke` | Kennzeichen + Zeit gespeichert, Kasse bekommt normalisiertes Kennzeichen | bestanden |
+| TF-02 | Einfahrtszeiten mehrerer Fahrzeuge | `test_kasse` | 3 Einträge mit je eigener Zeit (FakeUhr statt 2 Min. warten) | bestanden |
+| TF-03 | Schranke öffnet in max. 2 s | `test_schranke` (teilweise) | `oeffnen()` erfolgt im selben Aufruf. Die echte Zeit (Browser → WLAN → Servo) nicht. | bestanden |
+| TF-04 | Schranke schliesst nach Durchfahrt | `test_schranke`, `test_ablauf` | schliesst erst nach „Auto durchgefahren“, vorher nicht | bestanden |
+| TF-05 | Einfahrt ohne gültiges Kennzeichen | `test_regeln`, `test_schranke` | alle 4 ungültigen Eingaben, „Kennzeichen nicht erkannt – bitte Hilfe-Taste drücken“, nichts gespeichert | bestanden |
+| TF-06 | Manuelle Erfassung bei Einfahrt | `test_schranke`, `test_kasse` | Hilfe-Zustand, Schranke öffnet, Vermerk „manuell erfasst“ | bestanden |
+| TF-07a | Manuelle Ausfahrt, nicht bezahlt | `test_schranke`, `test_ablauf` | Zahlung wird geprüft, zu, „Bitte zuerst an der Kasse bezahlen“ | bestanden |
+| TF-07b | Manuelle Ausfahrt, bezahlt | `test_schranke`, `test_ablauf` | CHF 2.00 mit Kreditkarte, Zahlung geprüft, Schranke öffnet | bestanden |
+| TF-08 | Doppelte Einfahrt (explorativ) | `test_kasse`, `test_schranke` | zweite Einfahrt wird **gesperrt** (siehe B-01 unten) | bestanden (Beobachtung B-01) |
+| TF-09 | Parkgebühr an den Grenzwerten | `test_regeln`, `test_kasse` | alle 8 Grenzwerte, u.a. 1 h 00 = CHF 2.00 und 24 h 00 = CHF 20.00 (F-02) | bestanden nach Retest |
+| TF-10 | Zahlung mit Kreditkarte | `test_kasse` | Status „bezahlt“ | bestanden |
+| TF-11 | Zahlung mit Twint | `test_kasse` | Status „bezahlt“ | bestanden |
+| TF-12a | Zahlung abgebrochen | `test_kasse`, `test_ablauf` | Status bleibt „nicht bezahlt“, Ausfahrt zu mit Zahlungshinweis | bestanden |
+| TF-12b | Zahlung fehlgeschlagen | `test_kasse`, `test_ablauf` | Status bleibt „nicht bezahlt“, Ausfahrt zu mit Zahlungshinweis | bestanden |
+| TF-13 | Ausfahrt nach Zahlung | `test_schranke`, `test_ablauf` | Kasse wird gefragt, Fahrzeug ausgetragen, 1 Platz mehr frei | bestanden nach Retest (F-01) |
+| TF-14 | Ausfahrt ohne Zahlung | `test_schranke` | zu, „Bitte zuerst an der Kasse bezahlen“ | bestanden |
+| TF-15 | Unbekanntes Kennzeichen bei Ausfahrt | `test_schranke`, `test_ablauf`, `test_kasse` | zu, „Fahrzeug unbekannt – bitte Hilfe-Taste drücken“ (F-04) | F-04 offen, hier behoben |
+| TF-16 | Kasse nicht erreichbar | `test_schranke` | zu, „Störung – Kasse nicht erreichbar“, nach Wiederverbindung offen (nur mit Stub möglich) | bestanden |
+| TF-17 | Anzeige im Startzustand | `test_kasse`, `test_schranke` | 3 freie Plätze | bestanden |
+| TF-18 | Anzeige aktualisiert sich | `test_ablauf` | freie Plätze 2 → 1 → 2 | bestanden nach Retest (F-01) |
+| TF-19 | Parkhaus voll | `test_kasse`, `test_schranke`, `test_ablauf` | „BESETZT“, zu, SZ 7 nicht gespeichert; nach Ausfahrt kann SZ 7 einfahren | bestanden |
+| TF-20 | Gesamtablauf | `test_ablauf` | Anzeige 2, 1 h 01 → CHF 4.00, Twint, Schranke öffnet, Anzeige 3 | bestanden nach Retest (F-01) |
+| TF-21 | Gesamtablauf mit nicht erkanntem Kennzeichen | `test_ablauf` | Ein- und Ausfahrt über Hilfe-Taste, Spy beweist die Zahlungsprüfung | bestanden |
+| TF-22 | Grenzwerte Kennzeichen | `test_regeln`, `test_schranke` | ZH 1 und ZH 999999 angenommen, ZH 0 und ZH 1000000 abgelehnt (F-03) | bestanden nach Retest |
+
+Bezug zu den Fehlern aus dem Testprotokoll:
+
+| Nr. | Fehler | Automatisiert abgesichert durch |
+|---|---|---|
+| F-01 | Anzeige freie Plätze erst nach Neuladen | Nicht automatisierbar (JavaScript/Polling der Webseite). Die Tests zeigen nur, dass die Logik den richtigen Wert sofort liefert (TF-13, TF-18, TF-20). |
+| F-02 | Gebühr bei genau 1 h / 24 h falsch | `test_TF09_gebuehr_grenzwerte`, `test_TF09_gebuehr_aus_parkdauer` |
+| F-03 | ZH 0 und ZH 1000000 angenommen | `test_TF22_kennzeichen_grenzwerte`, `test_TF22_grenzwerte_kennzeichen_an_der_schranke` |
+| F-04 | Falscher Text bei unbekanntem Kennzeichen | `test_TF15_ausfahrt_unbekannt_bleibt_zu`, `test_TF15_unbekanntes_kennzeichen` (Auflage A1 damit erledigt) |
+| B-01 | Doppelte Einfahrt möglich | Umgesetzt gemäss Empfehlung A2 (Sperre): `test_TF08_*`. Entscheid des Auftraggebers noch offen. |
 
 Zusätzlich getestet: Gesperrt-Meldung verschwindet nach genau 15 s, „nicht erkannt“ bleibt bis zur Hilfe stehen, bezahlter Betrag steigt nicht mehr, ungültige Zahlart, Testmodus.
 

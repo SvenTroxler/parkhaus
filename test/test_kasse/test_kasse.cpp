@@ -126,8 +126,17 @@ void test_TF11_zahlung_twint() {
   TEST_ASSERT_TRUE(Bezahlstatus::BEZAHLT == kasse->bezahlstatus("LU 4521", nullptr));
 }
 
-// TF-12: fehlgeschlagene Zahlung -> Status bleibt "nicht bezahlt"
-void test_TF12_zahlung_fehlgeschlagen() {
+// TF-12a: Zahlung abgebrochen (Dialog in der Kasse geschlossen, zahlen() wird nie
+// aufgerufen) -> Status bleibt "nicht bezahlt", auch wenn Zeit vergeht
+void test_TF12a_zahlung_abgebrochen() {
+  kasse->einfahren("ZH 123456", false);
+  uhr->vorspulenMin(30);
+  TEST_ASSERT_FALSE(kasse->finde("ZH 123456")->bezahlt);
+  TEST_ASSERT_TRUE(Bezahlstatus::NICHT_BEZAHLT == kasse->bezahlstatus("ZH 123456", nullptr));
+}
+
+// TF-12b: fehlgeschlagene Zahlung -> Status bleibt "nicht bezahlt"
+void test_TF12b_zahlung_fehlgeschlagen() {
   kasse->einfahren("ZH 123456", false);
   TEST_ASSERT_TRUE(KassenErgebnis::ZAHLUNG_FEHLGESCHLAGEN == kasse->zahlen("ZH 123456", "twint", false, nullptr));
   TEST_ASSERT_FALSE(kasse->finde("ZH 123456")->bezahlt);
@@ -175,7 +184,8 @@ int main(int, char**) {
   RUN_TEST(test_testmodus_einfahrtszeit_setzen);
   RUN_TEST(test_TF10_zahlung_kreditkarte);
   RUN_TEST(test_TF11_zahlung_twint);
-  RUN_TEST(test_TF12_zahlung_fehlgeschlagen);
+  RUN_TEST(test_TF12a_zahlung_abgebrochen);
+  RUN_TEST(test_TF12b_zahlung_fehlgeschlagen);
   RUN_TEST(test_zahlung_fehlerfaelle);
   RUN_TEST(test_bezahlter_betrag_bleibt_fix);
   RUN_TEST(test_TF13_TF15_ausfahren);

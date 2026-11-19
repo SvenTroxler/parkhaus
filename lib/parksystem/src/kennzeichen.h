@@ -1,9 +1,11 @@
 #pragma once
 // Pruefung und Vereinheitlichung von Kennzeichen (US1, US6).
 //
-// Gueltig: 2-3 Buchstaben (Kanton) + 1-6 Ziffern, Leerzeichen dazwischen erlaubt.
-//   "zh123456" -> "ZH 123456", "SZ 7" -> "SZ 7"
-// Ungueltig: "" , "123456" (Kanton fehlt), "ZH" (Nummer fehlt), "XX 12!3" (Sonderzeichen)
+// Gueltig: 2-3 Buchstaben (Kanton) + Zahl 1-999999 (ohne fuehrende Null),
+// Leerzeichen dazwischen erlaubt.
+//   "zh123456" -> "ZH 123456", "SZ 7" -> "SZ 7", "ZH 1" und "ZH 999999" (TF-22)
+// Ungueltig: "" , "123456" (Kanton fehlt), "ZH" (Nummer fehlt), "XX 12!3" (Sonderzeichen),
+//   "ZH 0", "ZH 007" (Zahl beginnt mit 0), "ZH 1000000" (zu gross)  (TF-22, Fehler F-03)
 
 #include <stddef.h>
 
@@ -23,7 +25,8 @@ inline bool normalisiereKennzeichen(const char* eingabe, char* ausgabe, size_t g
       if (nz > 0 || nb >= 3) return false;   // Buchstabe nach Ziffer / zu lang
       buchstaben[nb++] = c;
     } else if (c >= '0' && c <= '9') {
-      if (nz >= 6) return false;
+      if (nz >= 6) return false;              // groesser als 999999
+      if (nz == 0 && c == '0') return false;  // "ZH 0", fuehrende Null (F-03)
       ziffern[nz++] = c;
     } else {
       return false;                           // Sonderzeichen

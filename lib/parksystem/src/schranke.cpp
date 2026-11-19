@@ -30,16 +30,12 @@ const char* Schranke::meldung() {
   if (zustand_ != Zustand::BEREIT) return meldung_;
   if (!einfahrt_) return "Bitte vorfahren";
   int frei = kasse_.freiePlaetze();
-  if (frei < 0) return "Störung – bitte Hilfe-Taste drücken";
-  if (frei == 0) return "BESETZT – Parkhaus voll";                           // AK 5.3
+  if (frei < 0) return MELDUNG_STOERUNG;
+  if (frei == 0) return MELDUNG_BESETZT;                                     // AK 5.3
   return "Willkommen – bitte vorfahren";
 }
 
 const char* Schranke::typ() const { return zustand_ == Zustand::BEREIT ? "info" : typ_; }
-
-static void chf(char* buf, size_t n, uint32_t rappen) {
-  snprintf(buf, n, "CHF %lu.%02lu", (unsigned long)(rappen / 100), (unsigned long)(rappen % 100));
-}
 
 // Kennzeichen von der Kamera (manuell=false) oder vom Personal (manuell=true)
 // verarbeiten. Gibt false zurueck, wenn das Kennzeichen ungueltig ist.
@@ -47,7 +43,7 @@ bool Schranke::verarbeite(const char* eingabe, bool manuell) {
   char kz[KZ_LAENGE];
   if (!normalisiereKennzeichen(eingabe, kz, sizeof(kz))) {
     // AK 2.2 / AK 6.1: Schranke bleibt zu, Hinweis auf die Hilfe-Taste
-    if (!manuell) melde(Zustand::NICHT_ERKANNT, "Kennzeichen nicht erkannt – bitte Hilfe-Taste drücken", "fehler");
+    if (!manuell) melde(Zustand::NICHT_ERKANNT, MELDUNG_NICHT_ERKANNT, "fehler");
     return false;
   }
   strncpy(kz_, kz, sizeof(kz_) - 1);
@@ -64,35 +60,30 @@ bool Schranke::verarbeite(const char* eingabe, bool manuell) {
         melde(Zustand::GESPERRT, text, "fehler");
         break;
       case Einfahrt::VOLL:                                                   // AK 5.3
-        melde(Zustand::GESPERRT, "BESETZT – Parkhaus voll", "fehler");
+        melde(Zustand::GESPERRT, MELDUNG_BESETZT, "fehler");
         break;
       case Einfahrt::NICHT_ERREICHBAR:                                       // sicherer Zustand
-        melde(Zustand::GESPERRT, "Störung: Kasse nicht erreichbar – bitte Hilfe-Taste drücken", "fehler");
+        melde(Zustand::GESPERRT, MELDUNG_STOERUNG, "fehler");
         break;
     }
     return true;
   }
 
-  uint32_t gebuehr = 0;
-  switch (kasse_.bezahlstatus(kz, &gebuehr)) {                               // AK 4.1
-    case Bezahlstatus::UNBEKANNT:                                            // TF-15
-      snprintf(text, sizeof(text), "Keine Zahlung für %s vorhanden – bitte Hilfe-Taste drücken", kz);
-      melde(Zustand::GESPERRT, text, "fehler");
+  // Display-Texte gemaess Testkonzept V1.1 / Testprotokoll
+  switch (kasse_.bezahlstatus(kz, nullptr)) {                                // AK 4.1
+    case Bezahlstatus::UNBEKANNT:                                            // TF-15 (F-04)
+      melde(Zustand::GESPERRT, MELDUNG_UNBEKANNT, "fehler");
       break;
-    case Bezahlstatus::NICHT_BEZAHLT: {                                      // AK 4.3
-      char betrag[24];
-      chf(betrag, sizeof(betrag), gebuehr);
-      snprintf(text, sizeof(text), "Parkgebühr für %s nicht bezahlt (%s) – bitte an der Kasse bezahlen", kz, betrag);
-      melde(Zustand::GESPERRT, text, "fehler");
+    case Bezahlstatus::NICHT_BEZAHLT:                                        // AK 4.3, TF-07a, TF-14
+      melde(Zustand::GESPERRT, MELDUNG_NICHT_BEZAHLT, "fehler");
       break;
-    }
     case Bezahlstatus::BEZAHLT:                                              // AK 4.2
       kasse_.ausfahren(kz);
       snprintf(text, sizeof(text), "%s – gute Fahrt!", kz);
       melde(Zustand::OFFEN, text, "ok");
       break;
     case Bezahlstatus::NICHT_ERREICHBAR:                                     // TF-16
-      melde(Zustand::GESPERRT, "Störung: Kasse nicht erreichbar – bitte Hilfe-Taste drücken", "fehler");
+      melde(Zustand::GESPERRT, MELDUNG_STOERUNG, "fehler");
       break;
   }
   return true;

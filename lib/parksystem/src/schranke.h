@@ -6,6 +6,13 @@
 #include "schnittstellen.h"
 #include "kennzeichen.h"
 
+// Display-Meldungen gemaess Testkonzept V1.1 (erwartete Ergebnisse im Testprotokoll)
+#define MELDUNG_NICHT_ERKANNT "Kennzeichen nicht erkannt – bitte Hilfe-Taste drücken"  // TF-05
+#define MELDUNG_NICHT_BEZAHLT "Bitte zuerst an der Kasse bezahlen"                     // TF-07a, TF-14
+#define MELDUNG_UNBEKANNT     "Fahrzeug unbekannt – bitte Hilfe-Taste drücken"         // TF-15
+#define MELDUNG_STOERUNG      "Störung – Kasse nicht erreichbar"                       // TF-16
+#define MELDUNG_BESETZT       "BESETZT – Parkhaus voll"                                // TF-19
+
 enum class Zustand { BEREIT, NICHT_ERKANNT, HILFE, OFFEN, GESPERRT };
 const char* zustandText(Zustand z);   // "bereit", "nicht_erkannt", ... (Web-Schnittstelle)
 

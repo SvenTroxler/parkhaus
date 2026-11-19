@@ -172,24 +172,23 @@ void test_TF13_ausfahrt_bezahlt_oeffnet() {
   TEST_ASSERT_EQUAL_STRING("ZH 123456 – gute Fahrt!", aus->meldung());
 }
 
-// TF-14 / AK 4.3: nicht bezahlt -> zu, Hinweis mit offenem Betrag
+// TF-14 / AK 4.3: nicht bezahlt -> zu, Display "Bitte zuerst an der Kasse bezahlen"
 void test_TF14_ausfahrt_nicht_bezahlt_bleibt_zu() {
   kasse->status = Bezahlstatus::NICHT_BEZAHLT;
   kasse->gebuehr = 400;
   Antwort a = aus->kamera("ZH 123456");
   TEST_ASSERT_FALSE(a.ok);
-  TEST_ASSERT_EQUAL_STRING("Parkgebühr für ZH 123456 nicht bezahlt (CHF 4.00) – bitte an der Kasse bezahlen",
-                           aus->meldung());
+  TEST_ASSERT_EQUAL_STRING("Bitte zuerst an der Kasse bezahlen", aus->meldung());
   TEST_ASSERT_EQUAL_INT(0, kasse->anzahlAusfahren);
   TEST_ASSERT_EQUAL_INT(0, antrieb->anzahlOeffnen);
 }
 
-// TF-15: unbekanntes Kennzeichen -> zu, Hinweis "keine Zahlung"
+// TF-15: unbekanntes Kennzeichen -> zu, Display "Fahrzeug unbekannt" (nicht "bitte bezahlen", F-04)
 void test_TF15_ausfahrt_unbekannt_bleibt_zu() {
   kasse->status = Bezahlstatus::UNBEKANNT;
   Antwort a = aus->kamera("SZ 7");
   TEST_ASSERT_FALSE(a.ok);
-  TEST_ASSERT_EQUAL_STRING("Keine Zahlung für SZ 7 vorhanden – bitte Hilfe-Taste drücken", aus->meldung());
+  TEST_ASSERT_EQUAL_STRING("Fahrzeug unbekannt – bitte Hilfe-Taste drücken", aus->meldung());
   TEST_ASSERT_FALSE(antrieb->istOffen);
 }
 
@@ -199,7 +198,7 @@ void test_TF16_kasse_nicht_erreichbar_bleibt_zu() {
   kasse->status = Bezahlstatus::NICHT_ERREICHBAR;
   Antwort a = aus->kamera("ZH 123456");
   TEST_ASSERT_FALSE(a.ok);
-  TEST_ASSERT_ENTHAELT("Störung", aus->meldung());
+  TEST_ASSERT_EQUAL_STRING("Störung – Kasse nicht erreichbar", aus->meldung());
   TEST_ASSERT_FALSE(antrieb->istOffen);
 
   // Kasse wieder erreichbar -> naechster Versuch oeffnet
@@ -208,14 +207,39 @@ void test_TF16_kasse_nicht_erreichbar_bleibt_zu() {
   TEST_ASSERT_TRUE(antrieb->istOffen);
 }
 
-// TF-07 / AK 6.4: manuelle Erfassung an der Ausfahrt prueft trotzdem die Zahlung
-void test_TF07_manuell_ausfahrt_prueft_zahlung() {
+// TF-07a / AK 6.4, 4.3: manuelle Erfassung an der Ausfahrt, nicht bezahlt -> zu
+void test_TF07a_manuell_ausfahrt_nicht_bezahlt() {
   kasse->status = Bezahlstatus::NICHT_BEZAHLT;
   aus->kamera("");
   aus->hilfe();
   TEST_ASSERT_FALSE(aus->manuell("BE 98765").ok);
-  TEST_ASSERT_EQUAL_INT(1, kasse->anzahlBezahlstatus);
+  TEST_ASSERT_EQUAL_INT(1, kasse->anzahlBezahlstatus);         // Zahlung wurde geprueft
+  TEST_ASSERT_EQUAL_STRING("Bitte zuerst an der Kasse bezahlen", aus->meldung());
   TEST_ASSERT_FALSE(antrieb->istOffen);
+}
+
+// TF-07b / AK 6.4, 4.2: manuelle Erfassung an der Ausfahrt, bezahlt -> Zahlung geprueft, offen
+void test_TF07b_manuell_ausfahrt_bezahlt() {
+  kasse->status = Bezahlstatus::BEZAHLT;
+  aus->kamera("");
+  aus->hilfe();
+  TEST_ASSERT_TRUE(aus->manuell("BE 98765").ok);
+  TEST_ASSERT_EQUAL_INT(1, kasse->anzahlBezahlstatus);
+  TEST_ASSERT_EQUAL_INT(1, kasse->anzahlAusfahren);
+  TEST_ASSERT_TRUE(antrieb->istOffen);
+}
+
+// TF-22 / F-03: "ZH 0" und "ZH 1000000" oeffnen die Schranke nicht, "ZH 1" und "ZH 999999" schon
+void test_TF22_grenzwerte_kennzeichen_an_der_schranke() {
+  TEST_ASSERT_FALSE(ein->kamera("ZH 0").ok);
+  TEST_ASSERT_FALSE(ein->kamera("ZH 1000000").ok);
+  TEST_ASSERT_EQUAL_INT(0, kasse->anzahlEinfahren);
+  TEST_ASSERT_EQUAL_INT(0, antrieb->anzahlOeffnen);
+
+  TEST_ASSERT_TRUE(ein->kamera("ZH 1").ok);
+  ein->durchfahrt();
+  TEST_ASSERT_TRUE(ein->kamera("ZH 999999").ok);
+  TEST_ASSERT_EQUAL_INT(2, kasse->anzahlEinfahren);
 }
 
 // Gesperrt-Meldung verschwindet nach 15 s (FakeUhr statt Warten)
@@ -256,7 +280,9 @@ int main(int, char**) {
   RUN_TEST(test_TF14_ausfahrt_nicht_bezahlt_bleibt_zu);
   RUN_TEST(test_TF15_ausfahrt_unbekannt_bleibt_zu);
   RUN_TEST(test_TF16_kasse_nicht_erreichbar_bleibt_zu);
-  RUN_TEST(test_TF07_manuell_ausfahrt_prueft_zahlung);
+  RUN_TEST(test_TF07a_manuell_ausfahrt_nicht_bezahlt);
+  RUN_TEST(test_TF07b_manuell_ausfahrt_bezahlt);
+  RUN_TEST(test_TF22_grenzwerte_kennzeichen_an_der_schranke);
   RUN_TEST(test_gesperrt_meldung_verschwindet_nach_15s);
   RUN_TEST(test_nicht_erkannt_bleibt_stehen);
   return UNITY_END();
