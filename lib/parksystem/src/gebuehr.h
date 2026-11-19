@@ -7,7 +7,7 @@
 //   9h59 -> 20.00  12h00 -> 20.00 24h00 -> 20.00 24h01 -> 22.00
 
 #include <stdint.h>
-#include "config.h"
+#include "parameter.h"
 
 inline uint32_t berechneGebuehrRappen(uint32_t parkdauerSekunden) {
   uint32_t minuten = parkdauerSekunden / 60;
